@@ -26,7 +26,7 @@ export default function ScheduledEmailsTable() {
     setIsLoading(true);
     setError("");
     try {
-      const res = await axios.get("http://localhost:3001/api/emails/scheduled");
+      const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/emails/scheduled`);
       setEmails(res.data);
     } catch (err) {
       setError("Failed to load scheduled emails.");

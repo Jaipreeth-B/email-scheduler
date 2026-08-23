@@ -65,7 +65,7 @@ export default function ComposeEmailModal({ isOpen, onClose }: ComposeEmailModal
         userId: (session?.user as any)?.id || "anonymous",
       };
 
-      await axios.post("http://localhost:3001/api/campaigns", payload);
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/api/campaigns`, payload);
 
       // Reset and close
       setSubject("");
