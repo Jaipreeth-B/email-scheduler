@@ -90,24 +90,22 @@ To enforce strict provider limits, the worker evaluates an **atomic Redis Lua sc
 - It checks the hourly limit, increments the counter (if allowed), and sets a TTL of 1 hour on first use.
 
 ### 5. Rate-Limit Rescheduling
-**When the limit is reached:** The job is **not dropped** or failed. Instead, the worker halts processing, calculates the exact time until the start of the next UTC hour, and uses BullMQ's `moveToDelayed` to reschedule the job. We correctly throw a `DelayedError` after `moveToDelayed` to prevent BullMQ from misinterpreting the state and throwing "Missing lock" errors. 
-*(Note: As a trade-off, this bunches rate-limited jobs to fire concurrently at the exact start of the next hour up to the `WORKER_CONCURRENCY` limit).*
+**When the limit is reached:** The job is **not dropped** or failed. Instead, the worker halts processing, calculates the exact time until the start of the next UTC hour, and uses BullMQ's `moveToDelayed` to reschedule the job. We correctly throw a `DelayedError` after `moveToDelayed` to prevent BullMQ from misinterpreting the state and throwing "Missing lock" errors.
 
 ### 6. Multiple Senders
-The system fully supports multiple simultaneous senders. Every scheduled campaign dynamically provisions a unique Ethereal SMTP account. The rate-limiting keys are strictly scoped to the combination of the `senderEmail` and the current UTC hour, isolating limits across independent campaigns.
+The rate-limiting keys are strictly scoped to the combination of the `senderEmail` and the current UTC hour, logically isolating limits across independent campaigns.
 
 ### 7. Job State & Idempotency
 Idempotency is built upon a defensive, state-driven approach:
 1. When a job is picked up, it queries PostgreSQL to verify its status. If it's already `SENT`, it aborts immediately.
 2. Just before invoking SMTP, the job enters a `SENDING` state in the database.
 3. Upon success, it updates to `SENT`. Upon failure, it transitions to `FAILED`.
-*(Note: Exactly-Once delivery is impossible with an external SMTP provider. There is an unavoidable crash window: If the process crashes immediately after Ethereal accepts the email but before PostgreSQL commits the `SENT` state, BullMQ will eventually recover the stalled job and resend the email, resulting in duplicate delivery).*
 
 ### 8. Graceful Shutdown
 The API server strictly closes HTTP sockets and Prisma connections, while the Worker process gracefully drains active jobs (`emailWorker.close()`), disconnects Redis, and closes Prisma on `SIGINT`/`SIGTERM`.
 
 ### 9. Restart Persistence
-Because all job data, including active delay timers, resides in Docker-backed Redis, a hard crash does not lose data. BullMQ's stalled job detection inherently recovers jobs that died mid-flight. *(Note: Restart persistence has been architecturally designed but relies on Docker volumes. Hard-kill restart persistence has NOT been manually tested and remains a manual verification item for deployment).*
+Because all job data, including active delay timers, resides in Docker-backed Redis, a hard crash does not lose data. BullMQ's stalled job detection inherently recovers jobs that died mid-flight.
 
 ---
 
@@ -207,10 +205,64 @@ The application will be accessible at `http://localhost:3000`.
 - **TypeScript Builds:** Verified. `npm run build` passes fully on the backend.
 - **Database Migrations:** Prisma schema validation and migrations pass perfectly.
 
-### 16. Known Limitations & Trade-offs
-- **Exactly-Once Delivery is Impossible:** With an external SMTP provider, true exactly-once delivery cannot be guaranteed. There is an unavoidable crash window: If the process crashes immediately *after* Ethereal accepts the email but *before* PostgreSQL commits the `SENT` state, BullMQ will eventually recover the stalled job and resend the email, resulting in duplicate delivery.
-- **Rate Limit Reschedule Bunching:** When jobs exceed the hourly rate limit, they are collectively pushed to the exact start (00:00:00) of the next UTC hour. This causes their original staggered delay spacing to be lost for the subsequent hour, meaning they will be processed as rapidly as the `WORKER_CONCURRENCY` limit allows at the top of that hour.
-- **Restart Persistence:** While architecturally guaranteed by Redis volumes and BullMQ stalled job detection, a simulated hard-kill restart persistence test has NOT been manually verified by the developer yet.
+## Known Limitations & Production Trade-offs
+
+This project satisfies the core requirements of the assignment. The following limitations were identified during the final engineering review and are intentionally documented rather than hidden.
+
+### 1. Rate-Limited UI Status
+
+The dashboard derives `RATE LIMITED` status when a job has a `SCHEDULED` database status but its scheduled timestamp has already passed.
+
+This is sufficient for the assignment, but it cannot distinguish with certainty between:
+
+- a job delayed because of the hourly rate limit
+- a worker that is temporarily offline
+- a stalled or heavily backlogged job
+
+A production implementation should derive this state from the actual BullMQ job state rather than only from the database timestamp.
+
+### 2. Shared Ethereal SMTP Transporter
+
+The worker currently caches a single Ethereal SMTP transporter while campaigns store their own `senderEmail`.
+
+Ethereal permits the current testing setup, but a production email provider would require sender-specific SMTP credentials or a managed pool of authenticated transporters.
+
+The current design therefore demonstrates multi-sender rate-limit isolation, while SMTP credential isolation would be required for a production provider.
+
+### 3. Exactly-Once Delivery
+
+True exactly-once email delivery cannot be guaranteed with an external SMTP provider and a local PostgreSQL database.
+
+There is an unavoidable failure window between:
+
+1. SMTP accepting the email
+2. PostgreSQL recording the job as `SENT`
+
+If the worker crashes during this window, the job may be retried and the email may be delivered twice.
+
+The implementation therefore provides practical idempotency rather than claiming strict exactly-once delivery.
+
+### 4. Rate-Limit Rescheduling Bunching
+
+When the hourly limit is reached, rate-limited jobs are rescheduled to the beginning of the next UTC hour.
+
+If many jobs are rate-limited simultaneously, they may become eligible together at the next hour boundary. This can reduce the original spacing between emails and create a burst of work.
+
+A production implementation could use a sliding-window rate limiter or calculate staggered retry times.
+
+### 5. Large Campaign Ingestion
+
+Campaign creation currently processes email jobs individually.
+
+For very large campaigns, such as hundreds of thousands or millions of leads, this approach would not scale efficiently and could result in long API requests and database contention.
+
+A production implementation would use batched database inserts and BullMQ `addBulk`, potentially moving campaign ingestion itself into an asynchronous workflow.
+
+### 6. Restart Persistence Verification
+
+BullMQ and Redis are configured to preserve delayed jobs across service restarts, and BullMQ provides stalled-job recovery for jobs that were active during a worker failure.
+
+The architecture supports restart persistence, but a full hard-kill/restart recovery test was not performed as part of the assignment submission.
 
 ---
 
