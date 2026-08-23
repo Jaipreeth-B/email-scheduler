@@ -6,10 +6,12 @@ import prisma from '../prismaClient';
 import Redis from 'ioredis';
 
 // Shared Redis connection for rate limiting
-const redis = new Redis({
-  host: config.redis.host,
-  port: config.redis.port,
-});
+const redis = config.redis.url
+  ? new Redis(config.redis.url)
+  : new Redis({
+      host: config.redis.host,
+      port: config.redis.port,
+    });
 
 // Helper to get rate limit key (scoped by sender + UTC hour)
 function getRateLimitKey(senderEmail: string) {
@@ -154,10 +156,12 @@ export const emailWorker = new Worker(
     }
   },
   {
-    connection: {
-      host: config.redis.host,
-      port: config.redis.port,
-    },
+    connection: config.redis.url
+      ? new Redis(config.redis.url, { maxRetriesPerRequest: null })
+      : {
+          host: config.redis.host,
+          port: config.redis.port,
+        },
     concurrency: config.workerConcurrency,
   }
 );

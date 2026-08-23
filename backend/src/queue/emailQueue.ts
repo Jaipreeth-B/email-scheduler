@@ -1,11 +1,14 @@
 import { Queue } from 'bullmq';
 import { config } from '../config';
+import Redis from 'ioredis';
 
 export const emailQueue = new Queue('email-queue', {
-  connection: {
-    host: config.redis.host,
-    port: config.redis.port,
-  },
+  connection: config.redis.url
+    ? new Redis(config.redis.url, { maxRetriesPerRequest: null })
+    : {
+      host: config.redis.host,
+      port: config.redis.port,
+    },
 });
 
 export interface EmailJobData {
@@ -23,7 +26,7 @@ export interface EmailJobData {
  */
 export async function enqueueEmailJob(data: EmailJobData, scheduledAt: Date) {
   const delay = Math.max(0, scheduledAt.getTime() - Date.now());
-  
+
   await emailQueue.add('send-email', data, {
     jobId: data.jobId, // Ensuring idempotency: BullMQ ignores if same jobId is already in the queue
     delay: delay,
