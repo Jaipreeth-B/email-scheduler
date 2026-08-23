@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Build output
+.next/
+dist/
+build/
+
+# Logs
+*.log
+
+# Local AI/agent tooling
+.agents/
+.claude/
+.windsurf/
+
+# Nested agent tooling
+**/.agents/
+**/.claude/
+**/.windsurf/
+**/AGENTS.md
+**/CLAUDE.md
