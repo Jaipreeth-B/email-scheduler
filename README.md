@@ -55,33 +55,25 @@ The platform allows users to create bulk email campaigns, schedule emails for a 
 ## System Architecture
 
 The backend is intentionally split into two independent processes.
-                    ┌─────────────────────┐
-                    │      Next.js UI     │
-                    │   Google OAuth      │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │   Express API       │
-                    │                     │
-                    │ Campaign creation   │
-                    │ Email APIs          │
-                    └───────┬───────┬─────┘
-                            │       │
-                            ▼       ▼
-                     PostgreSQL    Redis
-                            │       │
-                            │       ▼
-                            │   BullMQ Queue
-                            │       │
-                            │       ▼
-                            │  Worker Process
-                            │       │
-                            │       ▼
-                            │  Ethereal SMTP
-                            │
-                            ▼
-                       Job State
+```mermaid
+flowchart TD
+    UI["Next.js UI<br/>Google OAuth"]
+    API["Express API<br/>Campaign & Email APIs"]
+    DB[("PostgreSQL<br/>Application State")]
+    REDIS[("Redis")]
+    QUEUE["BullMQ<br/>Delayed Queue"]
+    WORKER["Worker Process<br/>Configurable Concurrency"]
+    SMTP["Ethereal SMTP"]
+
+    UI --> API
+    API --> DB
+    API --> QUEUE
+    QUEUE --> REDIS
+    WORKER --> QUEUE
+    WORKER --> DB
+    WORKER --> REDIS
+    WORKER --> SMTP
+```
 
 ### 1. Delayed Email Scheduling
 We heavily utilize **BullMQ delayed jobs** rather than cron polling. Each email is enqueued with an exact timestamp (`scheduledAt`). BullMQ internally manages these in Redis and automatically activates them precisely when their delay expires.
@@ -135,7 +127,7 @@ Create `.env` in `backend/`:
 ```env
 DATABASE_URL="postgresql://admin:password123@localhost:5433/email_scheduler?schema=public"
 REDIS_HOST="localhost"
-REDIS_PORT=6380
+REDIS_PORT=6379
 PORT=3001
 WORKER_CONCURRENCY=5
 ```
