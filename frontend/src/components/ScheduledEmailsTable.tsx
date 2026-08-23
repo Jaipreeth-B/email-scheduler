@@ -9,7 +9,8 @@ interface ScheduledEmail {
   id: string;
   campaignId: string;
   recipient: string;
-  status: "PENDING" | "SCHEDULED";
+  status: "PENDING" | "SCHEDULED" | "SENDING";
+  displayStatus?: string;
   scheduledAt: string;
   campaign: {
     subject: string;
@@ -93,8 +94,15 @@ export default function ScheduledEmailsTable() {
                 {format(new Date(email.scheduledAt), "MMM d, yyyy h:mm a")}
               </td>
               <td className="px-6 py-4">
-                <span className="px-2.5 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded-full">
-                  {email.status}
+                <span 
+                  className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                    (email.displayStatus || email.status) === 'RATE LIMITED' ? 'bg-orange-100 text-orange-800' :
+                    (email.displayStatus || email.status) === 'SCHEDULED' ? 'bg-blue-100 text-blue-800' :
+                    (email.displayStatus || email.status) === 'SENDING' ? 'bg-purple-100 text-purple-800' :
+                    'bg-gray-100 text-gray-800'
+                  }`}
+                >
+                  {email.displayStatus || email.status}
                 </span>
               </td>
             </tr>

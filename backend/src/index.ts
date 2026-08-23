@@ -3,7 +3,7 @@ import cors from 'cors';
 import { config } from './config';
 import campaignRoutes from './routes/campaign';
 import emailRoutes from './routes/emails';
-import './queue/emailWorker'; // Import to initialize worker
+import prisma from './prismaClient';
 
 const app = express();
 
@@ -19,6 +19,26 @@ app.use('/api/emails', emailRoutes);
 // However, any jobs that were actively processing and the server crashed might be stuck in "active" state.
 // BullMQ handles this via "stalled jobs" detection natively and will move them back to "wait" state.
 
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   console.log(`Backend server listening on port ${config.port}`);
 });
+
+// Graceful shutdown for API process
+async function gracefulShutdown() {
+  console.log('Received shutdown signal for API, closing HTTP server...');
+  server.close(async () => {
+    console.log('HTTP server closed.');
+    await prisma.$disconnect();
+    console.log('Prisma disconnected.');
+    process.exit(0);
+  });
+  
+  // Force exit after 10 seconds if graceful shutdown fails
+  setTimeout(() => {
+    console.error('Could not close connections in time, forcefully shutting down');
+    process.exit(1);
+  }, 10000);
+}
+
+process.on('SIGTERM', gracefulShutdown);
+process.on('SIGINT', gracefulShutdown);

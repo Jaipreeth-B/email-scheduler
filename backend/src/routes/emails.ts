@@ -19,7 +19,20 @@ router.get('/scheduled', async (req: Request, res: Response) => {
       },
       orderBy: { scheduledAt: 'asc' }
     });
-    res.json(emails);
+    const now = new Date();
+    const emailsWithDisplayStatus = emails.map((job) => {
+      // If it is SCHEDULED but its original scheduled time has passed, it is waiting
+      // due to rate limiting or worker downtime.
+      let displayStatus = job.status as string;
+      if (job.status === 'SCHEDULED' && new Date(job.scheduledAt) < now) {
+        displayStatus = 'RATE LIMITED';
+      }
+      return {
+        ...job,
+        displayStatus,
+      };
+    });
+    res.json(emailsWithDisplayStatus);
   } catch (error) {
     res.status(500).json({ error: 'Internal server error' });
   }
