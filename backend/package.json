@@ -7,7 +7,10 @@
     "dev": "tsx src/index.ts",
     "worker": "tsx src/queue/emailWorker.ts",
     "build": "tsc",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node dist/index.js",
+    "start:worker": "node dist/queue/emailWorker.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "tsx clean.ts"
   },
   "keywords": [],
   "author": "",

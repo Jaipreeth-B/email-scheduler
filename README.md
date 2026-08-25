@@ -46,9 +46,11 @@ The platform allows users to create bulk email campaigns, schedule emails for a 
 
 ### Infrastructure
 
-- Docker
-- PostgreSQL container
-- Redis container
+- **Frontend Deployment:** Vercel
+- **Backend Deployment (API):** Render Web Service
+- **Database:** Render PostgreSQL
+- **Queue Storage:** Render Redis
+- **Worker Process:** Local execution (`npm run worker`) connected to remote Render infrastructure to save on background worker fees.
 
 ---
 
@@ -117,7 +119,7 @@ Because all job data, including active delay timers, resides in Docker-backed Re
 
 Create `.env.local` in `frontend/`:
 ```env
-NEXTAUTH_URL=http://localhost:3000
+NEXTAUTH_URL=https://your-vercel-deployment-url.vercel.app
 NEXTAUTH_SECRET=your_secure_random_string_here
 GOOGLE_CLIENT_ID=your_google_oauth_client_id
 GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
@@ -125,9 +127,9 @@ GOOGLE_CLIENT_SECRET=your_google_oauth_client_secret
 
 Create `.env` in `backend/`:
 ```env
-DATABASE_URL="postgresql://admin:password123@localhost:5433/email_scheduler?schema=public"
-REDIS_HOST="localhost"
-REDIS_PORT=6379
+# CRITICAL: External connections to Render PostgreSQL require ?sslmode=require
+DATABASE_URL="postgresql://user:pass@render-db-url.com/db_name?sslmode=require"
+REDIS_URL="rediss://user:pass@render-redis-url.com:6379"
 PORT=3001
 WORKER_CONCURRENCY=5
 ```
@@ -162,6 +164,12 @@ npm run dev
 In a new terminal window inside the `backend` folder:
 ```bash
 npm run worker
+```
+
+**Database Cleanup Utility**
+If you want to instantly wipe the remote PostgreSQL database and flush all pending jobs from the remote Redis queue:
+```bash
+npm run clean
 ```
 
 **Frontend**
