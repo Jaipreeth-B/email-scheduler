@@ -183,6 +183,28 @@ The application will be accessible at `http://localhost:3000`.
 
 ---
 
+## Production Deployment
+
+### Deploying the Backend API (Render)
+1. Connect your GitHub repository to Render and create a new **Web Service**.
+2. **Root Directory:** `backend`
+3. **Build Command:** `npm install && npx prisma generate && npm run build`
+4. **Start Command:** `npm run start`
+5. **Environment Variables:**
+   - `DATABASE_URL`: Your Render Internal Database URL.
+   - `REDIS_URL`: Your Render Redis Internal URL.
+   - `WORKER_CONCURRENCY`: `5`
+
+*(Note: The database tables must be created from your local machine using `npx prisma db push` connected to the external database URL with `?sslmode=require`, after whitelisting your IP in Render Access Control).*
+
+### Deploying the Frontend (Vercel)
+1. Connect your repository to Vercel.
+2. **Root Directory:** `frontend`
+3. **Environment Variables:** Add all variables from your `.env.local`.
+4. Crucially, set `NEXT_PUBLIC_API_URL` to your newly deployed Render Web Service URL (e.g., `https://outbox-api.onrender.com`).
+
+---
+
 ## API Endpoints
 
 ### 13. API Endpoints

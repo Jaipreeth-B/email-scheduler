@@ -20,6 +20,8 @@ export const metadata: Metadata = {
 import { Providers } from "@/components/Providers";
 import { Toaster } from "react-hot-toast";
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
