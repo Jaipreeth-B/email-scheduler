@@ -5,13 +5,17 @@ import nodemailer from 'nodemailer';
 import prisma from '../prismaClient';
 import Redis from 'ioredis';
 
+const redisOptions = config.redis.url?.startsWith('rediss://')
+  ? { tls: { rejectUnauthorized: false } }
+  : {};
+
 // Shared Redis connection for rate limiting
 const redis = config.redis.url
-  ? new Redis(config.redis.url)
+  ? new Redis(config.redis.url, redisOptions)
   : new Redis({
-      host: config.redis.host,
-      port: config.redis.port,
-    });
+    host: config.redis.host,
+    port: config.redis.port,
+  });
 
 // Helper to get rate limit key (scoped by sender + UTC hour)
 function getRateLimitKey(senderEmail: string) {
@@ -157,11 +161,11 @@ export const emailWorker = new Worker(
   },
   {
     connection: config.redis.url
-      ? new Redis(config.redis.url, { maxRetriesPerRequest: null })
+      ? new Redis(config.redis.url, { maxRetriesPerRequest: null, ...redisOptions })
       : {
-          host: config.redis.host,
-          port: config.redis.port,
-        },
+        host: config.redis.host,
+        port: config.redis.port,
+      },
     concurrency: config.workerConcurrency,
   }
 );

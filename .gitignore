@@ -26,3 +26,8 @@ build/
 **/AGENTS.md
 **/CLAUDE.md
 Findings.md
+
+# Portfolio scripts
+edit_portfolio.py
+fix_portfolio.py
+inspect_portfolio.py

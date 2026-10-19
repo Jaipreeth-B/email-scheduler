@@ -4,7 +4,7 @@ import { config } from './config';
 import campaignRoutes from './routes/campaign';
 import emailRoutes from './routes/emails';
 import prisma from './prismaClient';
-
+import './queue/emailWorker'
 const app = express();
 
 app.use(cors());
@@ -32,7 +32,7 @@ async function gracefulShutdown() {
     console.log('Prisma disconnected.');
     process.exit(0);
   });
-  
+
   // Force exit after 10 seconds if graceful shutdown fails
   setTimeout(() => {
     console.error('Could not close connections in time, forcefully shutting down');

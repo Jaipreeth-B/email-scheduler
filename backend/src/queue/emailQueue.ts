@@ -2,9 +2,13 @@ import { Queue } from 'bullmq';
 import { config } from '../config';
 import Redis from 'ioredis';
 
+const redisOptions = config.redis.url?.startsWith('rediss://')
+  ? { tls: { rejectUnauthorized: false } }
+  : {};
+
 export const emailQueue = new Queue('email-queue', {
   connection: config.redis.url
-    ? new Redis(config.redis.url, { maxRetriesPerRequest: null })
+    ? new Redis(config.redis.url, { maxRetriesPerRequest: null, ...redisOptions })
     : {
       host: config.redis.host,
       port: config.redis.port,
