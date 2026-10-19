@@ -22,10 +22,10 @@ export default function Home() {
           <Mail size={32} strokeWidth={1.5} />
         </div>
         <div className="text-center">
-          <h1 className="text-2xl font-semibold text-gray-900">Outbox Labs</h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Email Scheduler Demo</h1>
           <p className="text-sm text-gray-500 mt-2">Sign in to schedule and manage your email campaigns.</p>
         </div>
-        
+
         <button
           onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
           className="w-full flex items-center justify-center gap-3 bg-white border border-gray-300 text-gray-700 font-medium py-3 px-4 rounded-xl hover:bg-gray-50 active:bg-gray-100 active:scale-[0.99] transition-all duration-150 focus-visible:ring-4 focus-visible:ring-blue-100 outline-none cursor-pointer shadow-sm"
